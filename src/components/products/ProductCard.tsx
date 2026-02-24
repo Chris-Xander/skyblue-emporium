@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Eye } from 'lucide-react';
-import { Product } from '@/data/products';
+import { Product } from '@/lib/firestore';
 import { useCart } from '@/context/CartContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';

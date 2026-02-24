@@ -1,11 +1,15 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, CreditCard, Headphones } from 'lucide-react';
+import { ArrowRight, Truck, Shield, CreditCard, Headphones, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/products/ProductCard';
-import { products, categories } from '@/data/products';
+import { useProducts } from '@/hooks/useProducts';
+import { useCategories } from '@/hooks/useCategories';
 
 export default function Index() {
+  const { data: products = [], isLoading: productsLoading } = useProducts();
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
+  
   const featuredProducts = products.slice(0, 4);
 
   return (
@@ -74,19 +78,25 @@ export default function Index() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {categories.map((category, i) => (
-              <Link
-                key={category.id}
-                to={`/shop?category=${category.id}`}
-                className="group p-6 md:p-8 rounded-2xl bg-card border border-border hover:border-primary hover:shadow-product transition-all duration-300 text-center"
-                style={{ animationDelay: `${i * 100}ms` }}
-              >
-                <span className="text-4xl md:text-5xl mb-4 block">{category.icon}</span>
-                <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                  {category.name}
-                </h3>
-              </Link>
-            ))}
+            {categoriesLoading ? (
+              <div className="col-span-full flex justify-center items-center py-8">
+                <Loader className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              categories.map((category, i) => (
+                <Link
+                  key={category.id}
+                  to={`/shop?category=${category.id}`}
+                  className="group p-6 md:p-8 rounded-2xl bg-card border border-border hover:border-primary hover:shadow-product transition-all duration-300 text-center"
+                  style={{ animationDelay: `${i * 100}ms` }}
+                >
+                  <span className="text-4xl md:text-5xl mb-4 block">{category.icon}</span>
+                  <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                    {category.name}
+                  </h3>
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -110,9 +120,15 @@ export default function Index() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {featuredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+            {productsLoading ? (
+              <div className="col-span-full flex justify-center items-center py-8">
+                <Loader className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              featuredProducts.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))
+            )}
           </div>
         </div>
       </section>

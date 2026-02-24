@@ -1,29 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2, Phone, Copy, Home } from 'lucide-react';
+import { CheckCircle2, Phone, Copy, Home, Loader } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
+import { useOrder } from '@/hooks/useOrders';
+import { Order } from '@/lib/firestore';
 import { toast } from 'sonner';
 
-interface OrderData {
-  orderId: string;
-  customer: {
-    name: string;
-    phone: string;
-    email: string;
-  };
-  items: Array<{
-    name: string;
-    price: number;
-    quantity: number;
-  }>;
-  total: number;
-  createdAt: string;
-}
-
 export default function OrderConfirmation() {
-  const [order, setOrder] = useState<OrderData | null>(null);
   const navigate = useNavigate();
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   // MTN MoMo details (these would be configured by admin)
   const momoDetails = {
@@ -32,13 +18,17 @@ export default function OrderConfirmation() {
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem('pending_order');
+    const stored = localStorage.getItem('pending_order_id');
     if (stored) {
-      setOrder(JSON.parse(stored));
+      setOrderId(stored);
+      // Clear it after loading
+      localStorage.removeItem('pending_order_id');
     } else {
       navigate('/shop');
     }
   }, [navigate]);
+
+  const { data: order, isLoading } = useOrder(orderId || '');
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('fr-CM', {
@@ -53,11 +43,24 @@ export default function OrderConfirmation() {
     toast.success(`${label} copied to clipboard!`);
   };
 
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="container-shop py-20 flex justify-center items-center">
+          <Loader className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
   if (!order) {
     return (
       <Layout>
         <div className="container-shop py-20 text-center">
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">Order not found</p>
+          <Link to="/shop" className="mt-4">
+            <Button>Back to Shop</Button>
+          </Link>
         </div>
       </Layout>
     );
@@ -76,14 +79,14 @@ export default function OrderConfirmation() {
               Order Confirmed!
             </h1>
             <p className="text-muted-foreground">
-              Thank you, {order.customer.name}! Your order has been received.
+              Thank you, {order.customerInfo.name}! Your order has been received.
             </p>
           </div>
 
           {/* Order ID */}
           <div className="bg-secondary rounded-xl p-4 mb-6 text-center">
             <p className="text-sm text-muted-foreground mb-1">Order Reference</p>
-            <p className="text-xl font-bold text-foreground">{order.orderId}</p>
+            <p className="text-xl font-bold text-foreground">{order.id}</p>
           </div>
 
           {/* MTN MoMo Payment Instructions */}
@@ -142,12 +145,12 @@ export default function OrderConfirmation() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => copyToClipboard(order.orderId, 'Reference')}
+                    onClick={() => copyToClipboard(order.id, 'Reference')}
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
                 </div>
-                <p className="text-lg font-bold text-foreground">{order.orderId}</p>
+                <p className="text-lg font-bold text-foreground">{order.id}</p>
               </div>
             </div>
 

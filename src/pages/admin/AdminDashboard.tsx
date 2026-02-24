@@ -8,14 +8,37 @@ import {
   Plus,
   TrendingUp,
   Users,
-  DollarSign
+  DollarSign,
+  Loader
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { products, categories } from '@/data/products';
+import { useProducts } from '@/hooks/useProducts';
+import { useCategories } from '@/hooks/useCategories';
+import { useOrders } from '@/hooks/useOrders';
+import AddProductModal from '@/components/admin/AddProductModal';
+import AddCategoryModal from '@/components/admin/AddCategoryModal';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const { data: products = [], isLoading: productsLoading, refetch: refetchProducts } = useProducts();
+  const { data: categories = [], isLoading: categoriesLoading, refetch: refetchCategories } = useCategories();
+  const { data: orders = [] } = useOrders();
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_authenticated');
+    navigate('/admin');
+  };
+
+  const handleProductAdded = () => {
+    refetchProducts();
+  };
+
+  const handleCategoryAdded = () => {
+    refetchCategories();
+  };
 
   useEffect(() => {
     const auth = localStorage.getItem('admin_authenticated');
@@ -25,15 +48,6 @@ export default function AdminDashboard() {
       setIsAuthenticated(true);
     }
   }, [navigate]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('admin_authenticated');
-    navigate('/admin');
-  };
-
-  if (!isAuthenticated) {
-    return null;
-  }
 
   const stats = [
     {
@@ -49,14 +63,14 @@ export default function AdminDashboard() {
       color: 'bg-green-100 text-green-600',
     },
     {
-      label: 'Pending Orders',
-      value: 0,
+      label: 'Total Orders',
+      value: orders.length,
       icon: ShoppingBag,
       color: 'bg-amber-100 text-amber-600',
     },
     {
       label: 'Revenue',
-      value: 'XAF 0',
+      value: `XAF ${orders.reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString()}`,
       icon: DollarSign,
       color: 'bg-purple-100 text-purple-600',
     },
@@ -72,7 +86,7 @@ export default function AdminDashboard() {
               <span className="text-primary-foreground font-bold text-lg">S</span>
             </div>
             <div>
-              <h1 className="font-bold text-foreground">Admin Dashboard</h1>
+              <h1 className="font-bold text-foreground">Dashboard</h1>
               <p className="text-xs text-muted-foreground">SkyShop Management</p>
             </div>
           </div>
@@ -118,7 +132,10 @@ export default function AdminDashboard() {
               Manage your product catalog. Add, edit, or remove products.
             </p>
             <div className="flex gap-3">
-              <Button className="gap-2">
+              <Button 
+                className="gap-2"
+                onClick={() => setIsAddProductOpen(true)}
+              >
                 <Plus className="w-4 h-4" />
                 Add Product
               </Button>
@@ -135,7 +152,10 @@ export default function AdminDashboard() {
               Organize your products into categories for easy browsing.
             </p>
             <div className="flex gap-3">
-              <Button className="gap-2">
+              <Button 
+                className="gap-2"
+                onClick={() => setIsAddCategoryOpen(true)}
+              >
                 <Plus className="w-4 h-4" />
                 Add Category
               </Button>
@@ -151,52 +171,58 @@ export default function AdminDashboard() {
             Recent Products
           </h2>
           
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Product</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Category</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Price</th>
-                  <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.slice(0, 5).map(product => {
-                  const category = categories.find(c => c.id === product.categoryId);
-                  return (
-                    <tr key={product.id} className="border-b border-border last:border-0">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="w-10 h-10 rounded-lg object-cover"
-                          />
-                          <span className="font-medium text-foreground">{product.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="badge-category">
-                          {category?.icon} {category?.name}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 font-semibold text-primary">
-                        {new Intl.NumberFormat('fr-CM', {
-                          style: 'currency',
-                          currency: 'XAF',
-                          minimumFractionDigits: 0,
-                        }).format(product.price)}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Button variant="ghost" size="sm">Edit</Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {productsLoading || categoriesLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Product</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Category</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Price</th>
+                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.slice(0, 5).map(product => {
+                    const category = categories.find(c => c.id === product.categoryId);
+                    return (
+                      <tr key={product.id} className="border-b border-border last:border-0">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-10 h-10 rounded-lg object-cover"
+                            />
+                            <span className="font-medium text-foreground">{product.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="badge-category">
+                            {category?.icon} {category?.name}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-primary">
+                          {new Intl.NumberFormat('fr-CM', {
+                            style: 'currency',
+                            currency: 'XAF',
+                            minimumFractionDigits: 0,
+                          }).format(product.price)}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <Button variant="ghost" size="sm">Edit</Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Setup Notice */}
@@ -208,6 +234,20 @@ export default function AdminDashboard() {
             you'll need to configure Firebase and EmailJS credentials.
           </p>
         </div>
+
+        {/* Modals */}
+        <AddProductModal
+          isOpen={isAddProductOpen}
+          onClose={() => setIsAddProductOpen(false)}
+          categories={categories}
+          onProductAdded={handleProductAdded}
+        />
+
+        <AddCategoryModal
+          isOpen={isAddCategoryOpen}
+          onClose={() => setIsAddCategoryOpen(false)}
+          onCategoryAdded={handleCategoryAdded}
+        />
       </div>
     </div>
   );

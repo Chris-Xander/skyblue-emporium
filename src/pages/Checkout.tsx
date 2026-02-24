@@ -4,16 +4,21 @@ import { ArrowLeft, User, Phone, Mail, CheckCircle } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
+import { useCreateOrder } from '@/hooks/useOrders';
 import { toast } from 'sonner';
 
 export default function Checkout() {
   const { items, getTotal, clearCart } = useCart();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { mutateAsync: createOrder } = useCreateOrder();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
+    address: '',
+    city: '',
+    country: 'Cameroon',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -46,6 +51,14 @@ export default function Checkout() {
       newErrors.email = 'Please enter a valid email address';
     }
 
+    if (!formData.address.trim()) {
+      newErrors.address = 'Address is required';
+    }
+
+    if (!formData.city.trim()) {
+      newErrors.city = 'City is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -60,36 +73,48 @@ export default function Checkout() {
 
     setIsSubmitting(true);
 
-    // Generate order ID
-    const orderId = `SKY-${Date.now().toString(36).toUpperCase()}`;
+    try {
+      // Create order in Firestore
+      const orderId = await createOrder({
+        items: items.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          imageUrl: item.imageUrl,
+          categoryId: item.categoryId,
+        })),
+        total: getTotal(),
+        customerInfo: {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          country: formData.country,
+        },
+        paymentMethod: 'MTN MoMo',
+        status: 'pending',
+      });
 
-    // Store order data for confirmation page
-    const orderData = {
-      orderId,
-      customer: formData,
-      items: items.map(item => ({
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-      total: getTotal(),
-      createdAt: new Date().toISOString(),
-    };
+      // Store order ID for confirmation page
+      localStorage.setItem('pending_order_id', orderId);
 
-    // Store order in localStorage for confirmation page
-    localStorage.setItem('pending_order', JSON.stringify(orderData));
+      // Clear cart
+      clearCart();
 
-    // Clear cart
-    clearCart();
-
-    // Redirect to confirmation
-    setTimeout(() => {
-      setIsSubmitting(false);
+      // Redirect to confirmation
+      toast.success('Order placed successfully!');
       navigate('/order-confirmation');
-    }, 1000);
+    } catch (error) {
+      toast.error('Failed to place order. Please try again.');
+      console.error('Order creation error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     // Clear error when user starts typing
@@ -157,6 +182,27 @@ export default function Checkout() {
                 )}
               </div>
 
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Email Address *
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="your@email.com"
+                    className={`input-field pl-12 ${errors.email ? 'border-destructive focus:ring-destructive' : ''}`}
+                  />
+                </div>
+                {errors.email && (
+                  <p className="text-sm text-destructive mt-1">{errors.email}</p>
+                )}
+              </div>
+
               {/* Phone */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -178,24 +224,39 @@ export default function Checkout() {
                 )}
               </div>
 
-              {/* Email */}
+              {/* Address */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Email Address *
+                  Address *
                 </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="your@email.com"
-                    className={`input-field pl-12 ${errors.email ? 'border-destructive focus:ring-destructive' : ''}`}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-sm text-destructive mt-1">{errors.email}</p>
+                <input
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Your delivery address"
+                  className={`input-field ${errors.address ? 'border-destructive focus:ring-destructive' : ''}`}
+                />
+                {errors.address && (
+                  <p className="text-sm text-destructive mt-1">{errors.address}</p>
+                )}
+              </div>
+
+              {/* City */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  City *
+                </label>
+                <input
+                  type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  placeholder="Your city"
+                  className={`input-field ${errors.city ? 'border-destructive focus:ring-destructive' : ''}`}
+                />
+                {errors.city && (
+                  <p className="text-sm text-destructive mt-1">{errors.city}</p>
                 )}
               </div>
 

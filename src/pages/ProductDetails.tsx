@@ -1,9 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Minus, Plus, Loader } from 'lucide-react';
 import { useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { getProductById, getCategoryById } from '@/data/products';
+import { useProduct } from '@/hooks/useProducts';
+import { useCategory } from '@/hooks/useCategories';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
 
@@ -12,10 +13,20 @@ export default function ProductDetails() {
   const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
 
-  const product = id ? getProductById(id) : null;
-  const category = product ? getCategoryById(product.categoryId) : null;
+  const { data: product, isLoading, error } = useProduct(id || '');
+  const { data: category } = useCategory(product?.categoryId || '');
 
-  if (!product) {
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="container-shop py-20 flex justify-center items-center">
+          <Loader className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error || !product) {
     return (
       <Layout>
         <div className="container-shop py-20 text-center">

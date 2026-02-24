@@ -3,21 +3,25 @@ import { useSearchParams } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/products/ProductCard';
 import CategoryFilter from '@/components/products/CategoryFilter';
-import { getProductsByCategory } from '@/data/products';
-import { Search } from 'lucide-react';
+import { useProductsFiltered } from '@/hooks/useProducts';
+import { Search, Loader } from 'lucide-react';
 
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const categoryParam = searchParams.get('category') || 'all';
-  const [selectedCategory, setSelectedCategory] = useState(categoryParam);
+  const categoryParam = searchParams.get('category') || undefined;
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(
+    categoryParam === 'all' ? undefined : categoryParam
+  );
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    setSelectedCategory(categoryParam);
+    const newCategory = categoryParam === 'all' ? undefined : categoryParam;
+    setSelectedCategory(newCategory);
   }, [categoryParam]);
 
   const handleCategoryChange = (categoryId: string) => {
-    setSelectedCategory(categoryId);
+    const newCategory = categoryId === 'all' ? undefined : categoryId;
+    setSelectedCategory(newCategory);
     if (categoryId === 'all') {
       searchParams.delete('category');
     } else {
@@ -26,12 +30,9 @@ export default function Shop() {
     setSearchParams(searchParams);
   };
 
-  const products = getProductsByCategory(selectedCategory);
-  
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const { data: products = [], isLoading, error } = useProductsFiltered(selectedCategory, searchQuery);
+
+  const filteredProducts = products;
 
   return (
     <Layout>
@@ -67,7 +68,21 @@ export default function Shop() {
         </div>
 
         {/* Products Grid */}
-        {filteredProducts.length > 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center py-16">
+            <Loader className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-16">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              Error loading products
+            </h3>
+            <p className="text-muted-foreground">
+              Please try again later
+            </p>
+          </div>
+        ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {filteredProducts.map(product => (
               <ProductCard key={product.id} product={product} />
